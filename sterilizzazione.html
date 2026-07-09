@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sterilizzazione - Italia Meal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, Roboto, Arial, sans-serif; background: #f2f4f7; min-height: 100vh; }
+  .container { max-width: 520px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  h1 { font-size: 19px; color: #1a1a2e; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: #444; margin: 10px 0 4px; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 11px; border: 1px solid #ddd; border-radius: 10px; font-size: 15px; background: #fafafa; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 14px; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-photo { background: #fff; color: #2563eb; border: 2px dashed #2563eb; }
+  .btn-secondary { background: #f1f5f9; color: #333; }
+  .btn-del { background: #fee2e2; color: #991b1b; padding: 8px; font-size: 13px; margin-top: 8px; }
+  .btn:disabled { opacity: 0.5; }
+  .msg { padding: 10px; border-radius: 8px; font-size: 14px; margin-top: 10px; display: none; }
+  .msg.ok { background: #dcfce7; color: #166534; display: block; }
+  .msg.err { background: #fee2e2; color: #991b1b; display: block; }
+  .msg.info { background: #dbeafe; color: #1e40af; display: block; }
+  #loginScreen { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
+  .logout { font-size: 13px; color: #666; text-decoration: underline; cursor: pointer; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .hidden { display: none; }
+  .lettura-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-top: 10px; background: #fafbfc; }
+  .lettura-head { font-weight: 700; font-size: 13px; color: #2563eb; margin-bottom: 6px; }
+  .temp-grid { display: grid; gap: 8px; margin-top: 4px; }
+  .temp-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .temp-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+  .mini-label { font-size: 11px; color: #666; margin-bottom: 2px; display: block; text-transform: uppercase; }
+  .mini-input { padding: 8px; font-size: 13px; }
+  .btn-print { background: #16a34a; color: #fff; }
+  .navbar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .navbar a { flex: 1; text-align: center; padding: 10px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600; background: #f1f5f9; color: #333; }
+  .navbar a.active { background: #2563eb; color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="container">
+  <div class="card">
+    <h1>Sterilizzazione (CCP3)</h1>
+    <p class="sub">Inserisci i tuoi dati per iniziare</p>
+    <label>Nome</label>
+    <input type="text" id="loginNome" placeholder="Es. Marco">
+    <label>Cognome</label>
+    <input type="text" id="loginCognome" placeholder="Es. Rossi">
+    <label>Numero Badge</label>
+    <input type="text" id="loginBadge" inputmode="numeric" placeholder="Es. 022">
+    <button class="btn btn-primary" id="btnLogin">Accedi</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="appScreen" class="container" style="display:none;">
+  <div class="top-bar">
+    <h1 id="operaioNome" style="font-size:16px;">-</h1>
+    <span class="logout" id="btnLogout">Esci</span>
+  </div>
+
+  <div class="navbar">
+    <a href="sterilizzazione.html" class="active">Sterilizzazione</a>
+    <a href="cloro.html">Cloro/Temperatura</a>
+  </div>
+
+  <!-- STEP 1: dati testata -->
+  <div class="card" id="cardTestata">
+    <h1>Nuova scheda sterilizzazione</h1>
+    <p class="sub">Dati generali del lotto</p>
+
+    <label>Formato / linea</label>
+    <select id="selLinea"></select>
+
+    <div class="row2">
+      <div><label>Data</label><input type="date" id="inData"></div>
+      <div><label>Lotto</label><input type="text" id="inLotto"></div>
+    </div>
+    <label>Prodotto</label>
+    <input type="text" id="inProdotto" placeholder="Es. Red Kidney Brine">
+    <div class="row2">
+      <div><label>N. Ricetta</label><input type="text" id="inRicetta"></div>
+      <div><label>Verifica RAQ</label><input type="text" id="inRaq"></div>
+    </div>
+    <div class="row2">
+      <div><label>CpM impostato</label><input type="number" step="0.1" id="inCpmSet"></div>
+      <div><label>T °C impostata</label><input type="number" step="0.1" id="inTempSet"></div>
+    </div>
+    <div class="row2">
+      <div><label>Tempo cooker</label><input type="text" id="inTempoCooker" placeholder="es. mm:ss"></div>
+      <div><label>Tempo cooler</label><input type="text" id="inTempoCooler" placeholder="es. mm:ss"></div>
+    </div>
+    <label>Pressione cooler</label>
+    <input type="number" step="0.1" id="inPressCooler">
+    <label>Note parametri</label>
+    <textarea id="inNoteParam" rows="2"></textarea>
+
+    <button class="btn btn-primary" id="btnCreaTestata">Crea scheda e continua</button>
+    <div class="msg" id="testataMsg"></div>
+  </div>
+
+  <!-- STEP 2: letture orarie -->
+  <div class="card hidden" id="cardLetture">
+    <h1>Verifica parametri orari</h1>
+    <p class="sub" id="lettureSub">Inserisci manualmente oppure carica una foto della scheda compilata</p>
+
+    <input type="file" accept="image/*" capture="environment" id="fotoInput" style="display:none;">
+    <button class="btn btn-photo" id="btnFoto">📷 Carica foto del foglio</button>
+    <div class="msg" id="fotoMsg"></div>
+
+    <div id="lettureContainer"></div>
+
+    <button class="btn btn-secondary" id="btnAggiungiRiga">+ Aggiungi riga manuale</button>
+    <button class="btn btn-primary" id="btnSalvaLetture">Salva letture</button>
+    <div class="msg" id="lettureMsg"></div>
+
+    <button class="btn btn-print" id="btnStampa">🖨️ Vedi e stampa scheda compilata</button>
+  </div>
+
+  <div class="card">
+    <h1 style="font-size:15px;">Ultime schede</h1>
+    <div id="storicoList"><p class="sub">Caricamento...</p></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://bzquqzgaaszguzcmvgbl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cXVxemdhYXN6Z3V6Y212Z2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjI4NjUsImV4cCI6MjA5NjY5ODg2NX0.p4lwBT2HWVEGge8LqVYu_rA1kO4WFxtbvCFDe1kRxeY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let currentLogId = null;
+let currentLinea = null; // { id, nome, stadi: [...], punti_temperatura: [...] }
+let rigaCount = 0;
+
+async function sha256(text) {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+document.getElementById('btnLogin').addEventListener('click', () => {
+  const nome = document.getElementById('loginNome').value.trim();
+  const cognome = document.getElementById('loginCognome').value.trim();
+  const badge = document.getElementById('loginBadge').value.trim();
+  if (!nome || !cognome || !badge) return showMsg('loginMsg', 'Compila nome, cognome e badge', 'err');
+  currentUser = { id: null, nome: nome + ' ' + cognome, badge };
+  sessionStorage.setItem('steril_user', JSON.stringify(currentUser));
+  entraNellApp();
+});
+document.getElementById('btnLogout').addEventListener('click', () => { sessionStorage.removeItem('steril_user'); location.reload(); });
+
+async function entraNellApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('operaioNome').textContent = currentUser.nome;
+  document.getElementById('inData').value = new Date().toISOString().split('T')[0];
+  await caricaLinee();
+  await caricaStorico();
+}
+
+let lineeCache = [];
+async function caricaLinee() {
+  const { data } = await sb.from('linee_sterilizzazione').select('*').order('nome');
+  lineeCache = data || [];
+  document.getElementById('selLinea').innerHTML = lineeCache.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
+}
+
+// --- STEP 1: crea testata ---
+document.getElementById('btnCreaTestata').addEventListener('click', async () => {
+  const lineaId = document.getElementById('selLinea').value;
+  currentLinea = lineeCache.find(l => l.id === lineaId);
+  if (!currentLinea || !currentLinea.stadi) {
+    showMsg('testataMsg', 'Questa linea non ha ancora la configurazione stadi/temperatura. Esegui la migrazione SQL.', 'err');
+    return;
+  }
+  const payload = {
+    linea_id: lineaId,
+    data: document.getElementById('inData').value,
+    prodotto: document.getElementById('inProdotto').value || null,
+    lotto: document.getElementById('inLotto').value || null,
+    n_ricetta: document.getElementById('inRicetta').value || null,
+    verifica_raq: document.getElementById('inRaq').value || null,
+    cpm_impostato: parseFloat(document.getElementById('inCpmSet').value) || null,
+    tempo_cooker: document.getElementById('inTempoCooker').value || null,
+    tempo_cooler: document.getElementById('inTempoCooler').value || null,
+    temp_impostata: parseFloat(document.getElementById('inTempSet').value) || null,
+    press_cooler: parseFloat(document.getElementById('inPressCooler').value) || null,
+    note_parametri: document.getElementById('inNoteParam').value || null,
+    operaio_id: currentUser.id,
+    operaio_nome: currentUser.nome
+  };
+  const { data, error } = await sb.from('sterilizzazione_log').insert(payload).select().single();
+  if (error) return showMsg('testataMsg', 'Errore: ' + error.message, 'err');
+  currentLogId = data.id;
+  showMsg('testataMsg', 'Scheda creata (' + currentLinea.nome + '). Ora aggiungi le letture orarie sotto.', 'ok');
+  document.getElementById('cardLetture').classList.remove('hidden');
+  document.getElementById('lettureSub').textContent = 'Stadi: ' + currentLinea.stadi.join(', ') + ' — Temperatura: ' + currentLinea.punti_temperatura.join('/');
+  document.getElementById('lettureContainer').innerHTML = '';
+  aggiungiRigaVuota();
+});
+
+// --- Righe letture (card dinamiche, in base a stadi/punti_temperatura della linea) ---
+function aggiungiRigaVuota(preset) {
+  rigaCount++;
+  const rid = 'r' + rigaCount;
+  const container = document.getElementById('lettureContainer');
+  const div = document.createElement('div');
+  div.className = 'lettura-card';
+  div.dataset.rid = rid;
+
+  const stadioOpts = currentLinea.stadi.map(s => `<option value="${s}" ${preset && preset.stadio === s ? 'selected' : ''}>${s}</option>`).join('');
+  const punti = currentLinea.punti_temperatura;
+  const colsClass = punti.length > 2 ? 'cols-4' : 'cols-2';
+  const tempInputs = punti.map(p => {
+    const val = preset && preset.temperature ? (preset.temperature[p] ?? '') : '';
+    return `<div><span class="mini-label">${p}</span><input type="number" step="0.1" class="mini-input c-temp" data-punto="${p}" value="${val}"></div>`;
+  }).join('');
+
+  div.innerHTML = `
+    <div class="lettura-head">Riga ${rigaCount}</div>
+    <label>Stadio</label>
+    <select class="c-stadio">${stadioOpts}</select>
+    <div class="row2">
+      <div><label>Ora</label><input type="time" class="c-ora" value="${preset?.ora || ''}"></div>
+      <div><label>CpM</label><input type="number" step="0.1" class="c-cpm" value="${preset?.cpm ?? ''}"></div>
+    </div>
+    <label>Temperatura</label>
+    <div class="temp-grid ${colsClass}">${tempInputs}</div>
+    <div class="row2">
+      <div><label>Pressione</label><input type="number" step="0.1" class="c-press" value="${preset?.pressione ?? ''}"></div>
+      <div><label>Livello acqua</label><input type="text" class="c-acqua" value="${preset?.livello_acqua || ''}"></div>
+    </div>
+    <label>Note/allarmi</label>
+    <input type="text" class="c-note" value="${preset?.note || preset?.note_allarmi || ''}">
+    <button class="btn btn-del" onclick="this.closest('.lettura-card').remove()">Rimuovi riga</button>
+  `;
+  container.appendChild(div);
+}
+document.getElementById('btnAggiungiRiga').addEventListener('click', () => aggiungiRigaVuota());
+
+document.getElementById('btnSalvaLetture').addEventListener('click', async () => {
+  const cards = Array.from(document.querySelectorAll('#lettureContainer .lettura-card'));
+  const rows = cards.map(card => {
+    const temperature = {};
+    card.querySelectorAll('.c-temp').forEach(inp => {
+      if (inp.value !== '') temperature[inp.dataset.punto] = parseFloat(inp.value);
+    });
+    return {
+      log_id: currentLogId,
+      stadio: card.querySelector('.c-stadio').value,
+      ora: card.querySelector('.c-ora').value || null,
+      cpm: parseFloat(card.querySelector('.c-cpm').value) || null,
+      temperature: Object.keys(temperature).length ? temperature : null,
+      pressione: parseFloat(card.querySelector('.c-press').value) || null,
+      livello_acqua: card.querySelector('.c-acqua').value || null,
+      note_allarmi: card.querySelector('.c-note').value || null,
+      operatore: currentUser.nome
+    };
+  });
+  if (rows.length === 0) return showMsg('lettureMsg', 'Nessuna riga da salvare', 'err');
+  const { error } = await sb.from('sterilizzazione_letture').insert(rows);
+  if (error) return showMsg('lettureMsg', 'Errore: ' + error.message, 'err');
+  showMsg('lettureMsg', rows.length + ' letture salvate correttamente', 'ok');
+  document.getElementById('lettureContainer').innerHTML = '';
+  await caricaStorico();
+});
+
+// --- Foto -> estrazione automatica via Claude ---
+document.getElementById('btnFoto').addEventListener('click', () => document.getElementById('fotoInput').click());
+document.getElementById('fotoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!currentLinea) { showMsg('fotoMsg', 'Crea prima la scheda testata', 'err'); return; }
+  showMsg('fotoMsg', 'Lettura foto in corso...', 'info');
+  document.getElementById('btnFoto').disabled = true;
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Lettura file fallita'));
+      r.readAsDataURL(file);
+    });
+
+    const puntiList = currentLinea.punti_temperatura.join('", "');
+    const stadiList = currentLinea.stadi.join('", "');
+    const promptText = 'Questa e\' una scheda cartacea di controllo sterilizzazione compilata a mano per il formato ' + currentLinea.nome + '. ' +
+      'Estrai SOLO le righe di "verifica parametri" con valori scritti (ignora righe vuote). ' +
+      'Gli stadi possibili sono ESATTAMENTE: "' + stadiList + '". ' +
+      'I punti di temperatura per questo formato sono ESATTAMENTE: "' + puntiList + '". ' +
+      'Rispondi ESCLUSIVAMENTE con un array JSON, nessun testo prima o dopo, formato: ' +
+      '[{"stadio":"...","ora":"HH:MM","cpm":numero,"temperature":{"' + currentLinea.punti_temperatura[0] + '":numero, ...},"pressione":numero,"livello_acqua":"testo","note":"testo"}]. ' +
+      'Usa null per i campi non leggibili o vuoti.';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1200,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+            { type: 'text', text: promptText }
+          ]
+        }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const letture = JSON.parse(clean);
+
+    if (!Array.isArray(letture) || letture.length === 0) {
+      showMsg('fotoMsg', 'Non ho trovato righe compilate nella foto. Prova con una foto più nitida.', 'err');
+      return;
+    }
+    letture.forEach(l => aggiungiRigaVuota(l));
+    showMsg('fotoMsg', letture.length + ' righe lette dalla foto. Controlla i valori prima di salvare.', 'ok');
+  } catch (err) {
+    showMsg('fotoMsg', 'Errore lettura foto: ' + err.message, 'err');
+  } finally {
+    document.getElementById('btnFoto').disabled = false;
+    e.target.value = '';
+  }
+});
+
+// --- Stampa scheda compilata (replica il modulo cartaceo) ---
+document.getElementById('btnStampa').addEventListener('click', async () => {
+  if (!currentLogId || !currentLinea) return;
+  const { data: log } = await sb.from('sterilizzazione_log').select('*').eq('id', currentLogId).single();
+  const { data: letture } = await sb.from('sterilizzazione_letture').select('*').eq('log_id', currentLogId).order('ora');
+
+  const punti = currentLinea.punti_temperatura;
+  const tempHeaders = punti.map(p => `<th>${p}</th>`).join('');
+  const righeHtml = (letture || []).map(r => {
+    const t = r.temperature || {};
+    const tempCells = punti.map(p => `<td>${t[p] ?? ''}</td>`).join('');
+    return `<tr><td>${r.stadio}</td><td>${r.ora || ''}</td><td>${r.cpm ?? ''}</td>${tempCells}<td>${r.pressione ?? ''}</td><td>${r.livello_acqua || ''}</td><td>${r.note_allarmi || ''}</td><td>${r.operatore || ''}</td></tr>`;
+  }).join('') + Array(Math.max(0, 10 - (letture || []).length)).fill(
+    `<tr><td>&nbsp;</td><td></td><td></td>${punti.map(()=>'<td></td>').join('')}<td></td><td></td><td></td><td></td></tr>`
+  ).join('');
+
+  const html = `
+    <html><head><title>Sterilizzazione - ${log.lotto || ''}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;color:#111}
+      h1{font-size:17px;margin-bottom:4px}
+      .sub{font-size:12px;color:#555;margin-bottom:12px}
+      .params{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;margin-bottom:14px;border:1px solid #ccc;padding:10px;border-radius:6px}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border:1px solid #333;padding:5px;text-align:center;font-size:11px}
+      th{background:#eee}
+    </style></head><body>
+    <h1>ITALIA MEAL S.r.l. - Controllo sterilizzazione ${currentLinea.nome} (CCP3)</h1>
+    <div class="sub">Data: ${log.data || ''} · Prodotto: ${log.prodotto || ''} · Lotto: ${log.lotto || ''}</div>
+    <div class="params">
+      <div><strong>N. Ricetta:</strong> ${log.n_ricetta || ''}</div>
+      <div><strong>Verifica RAQ:</strong> ${log.verifica_raq || ''}</div>
+      <div><strong>CpM impostato:</strong> ${log.cpm_impostato ?? ''}</div>
+      <div><strong>T °C impostata:</strong> ${log.temp_impostata ?? ''}</div>
+      <div><strong>Tempo cooker:</strong> ${log.tempo_cooker || ''}</div>
+      <div><strong>Tempo cooler:</strong> ${log.tempo_cooler || ''}</div>
+      <div><strong>Pressione cooler:</strong> ${log.press_cooler ?? ''}</div>
+      <div style="grid-column:span 2"><strong>Note:</strong> ${log.note_parametri || ''}</div>
+    </div>
+    <table>
+      <thead><tr><th>Stadio</th><th>Ora</th><th>CpM</th>${tempHeaders}<th>Pressione</th><th>Livello acqua</th><th>Note/allarmi</th><th>Opr</th></tr></thead>
+      <tbody>${righeHtml}</tbody>
+    </table>
+    <script>window.onload = () => window.print();<\/script>
+    </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+});
+
+// --- Storico ---
+async function caricaStorico() {
+  const { data, error } = await sb.from('sterilizzazione_log').select('*, linee_sterilizzazione(nome)')
+    .order('created_at', { ascending: false }).limit(5);
+  const el = document.getElementById('storicoList');
+  if (error || !data || data.length === 0) { el.innerHTML = '<p class="sub">Nessuna scheda ancora</p>'; return; }
+  el.innerHTML = data.map(d => {
+    const dt = new Date(d.created_at).toLocaleDateString('it-IT');
+    return `<div style="border-bottom:1px solid #eee;padding:8px 0;font-size:13px;">
+      <strong>${d.linee_sterilizzazione?.nome || ''}</strong> - Lotto ${d.lotto || '-'} - ${dt}
+    </div>`;
+  }).join('');
+}
+
+(function initSession() {
+  const saved = sessionStorage.getItem('steril_user');
+  if (saved) { currentUser = JSON.parse(saved); entraNellApp(); }
+})();
+</script>
+</body>
+</html>
