@@ -109,6 +109,11 @@
     <h1 style="font-size:16px;">I tuoi ultimi inserimenti</h1>
     <div id="historyList"><p class="sub">Caricamento...</p></div>
   </div>
+
+  <div class="card">
+    <h1 style="font-size:16px;">Le tue segnalazioni</h1>
+    <div id="segList"><p class="sub">Caricamento...</p></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -160,6 +165,7 @@ async function entraNellApp() {
   document.getElementById('operaioReparto').textContent = currentUser.reparto || '';
   await caricaLinee();
   await caricaStorico();
+  await caricaSegnalazioni();
 }
 
 // --- Carica linee attive nei due select ---
@@ -236,12 +242,13 @@ document.getElementById('btnSegnala').addEventListener('click', async () => {
   showMsg('segMsg', 'Segnalazione inviata', true);
   document.getElementById('inComponente').value = '';
   document.getElementById('inDescSegnalazione').value = '';
+  await caricaSegnalazioni();
 });
 
-// --- Storico ultimi inserimenti dell'operaio ---
+// --- Storico ultimi inserimenti (per nome, non c'è più login con id) ---
 async function caricaStorico() {
   const { data, error } = await sb.from('produzione_log').select('*, linee_produzione(nome)')
-    .eq('operaio_id', currentUser.id).order('created_at', { ascending: false }).limit(5);
+    .eq('operaio_nome', currentUser.nome).order('created_at', { ascending: false }).limit(10);
   const el = document.getElementById('historyList');
   if (error || !data || data.length === 0) {
     el.innerHTML = '<p class="sub">Nessun inserimento ancora</p>';
@@ -250,11 +257,45 @@ async function caricaStorico() {
   el.innerHTML = data.map(d => {
     const dt = new Date(d.created_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
     return `<div class="history-item">
-      <span class="badge badge-ok">${d.formato} kg</span>
-      ${d.linee_produzione ? d.linee_produzione.nome : ''} - ${dt}
-      ${d.temperatura ? ' · ' + d.temperatura + '°C' : ''}
+      <div><span class="badge badge-ok">${d.formato} kg</span> ${d.linee_produzione ? d.linee_produzione.nome : ''} - ${dt}${d.temperatura ? ' · ' + d.temperatura + '°C' : ''}</div>
+      <button onclick="eliminaInserimento('${d.id}')" style="margin-top:4px;background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">🗑️ Elimina</button>
     </div>`;
   }).join('');
+}
+
+async function eliminaInserimento(id) {
+  if (!confirm('Eliminare questo inserimento?')) return;
+  await sb.from('produzione_log').delete().eq('id', id);
+  await caricaStorico();
+}
+
+// --- Le tue segnalazioni ---
+async function caricaSegnalazioni() {
+  const { data, error } = await sb.from('manutenzione_log').select('*, linee_produzione(nome)')
+    .eq('autore_nome', currentUser.nome).order('created_at', { ascending: false }).limit(10);
+  const el = document.getElementById('segList');
+  if (error || !data || data.length === 0) {
+    el.innerHTML = '<p class="sub">Nessuna segnalazione ancora</p>';
+    return;
+  }
+  const statoColor = { aperta: '#fef3c7', in_corso: '#dbeafe', risolta: '#dcfce7' };
+  const statoTextColor = { aperta: '#92400e', in_corso: '#1e40af', risolta: '#166534' };
+  el.innerHTML = data.map(d => {
+    const dt = new Date(d.created_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const bg = statoColor[d.stato] || '#f1f5f9';
+    const col = statoTextColor[d.stato] || '#333';
+    return `<div class="history-item">
+      <div><span class="badge" style="background:${bg};color:${col}">${d.stato || 'aperta'}</span> ${d.linee_produzione ? d.linee_produzione.nome : ''} - ${dt}</div>
+      <div style="margin-top:4px">${d.componente ? '<strong>' + d.componente + ':</strong> ' : ''}${d.descrizione || ''}</div>
+      <button onclick="eliminaSegnalazione('${d.id}')" style="margin-top:4px;background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">🗑️ Elimina</button>
+    </div>`;
+  }).join('');
+}
+
+async function eliminaSegnalazione(id) {
+  if (!confirm('Eliminare questa segnalazione?')) return;
+  await sb.from('manutenzione_log').delete().eq('id', id);
+  await caricaSegnalazioni();
 }
 
 // --- Auto-login se sessione presente ---
