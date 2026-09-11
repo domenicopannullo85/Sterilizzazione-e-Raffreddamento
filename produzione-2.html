@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manutenzione - Italia Meal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, Roboto, Arial, sans-serif; background: #f2f4f7; min-height: 100vh; }
+  .container { max-width: 520px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  h1 { font-size: 19px; color: #1a1a2e; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: #444; margin: 10px 0 4px; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 11px; border: 1px solid #ddd; border-radius: 10px; font-size: 15px; background: #fafafa; }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 14px; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-warn { background: #fff; color: #dc2626; border: 2px solid #dc2626; }
+  .msg { padding: 10px; border-radius: 8px; font-size: 14px; margin-top: 10px; display: none; }
+  .msg.ok { background: #dcfce7; color: #166534; display: block; }
+  .msg.err { background: #fee2e2; color: #991b1b; display: block; }
+  #loginScreen { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
+  .logout { font-size: 13px; color: #666; text-decoration: underline; cursor: pointer; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .freq-title { font-size: 13px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin: 16px 0 8px; }
+  .freq-title:first-child { margin-top: 0; }
+  .item-row { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .item-testo { font-size: 13px; color: #222; margin-bottom: 6px; }
+  .item-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .item-data { font-size: 11px; color: #888; }
+  .item-btn { background: #f0fdf4; color: #166534; border: 1px solid #86efac; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .history-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 13px; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 10px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="container">
+  <div class="card">
+    <h1>Manutenzione (CCP3)</h1>
+    <p class="sub">Inserisci i tuoi dati per iniziare</p>
+    <label>Nome</label>
+    <input type="text" id="loginNome" placeholder="Es. Marco">
+    <label>Cognome</label>
+    <input type="text" id="loginCognome" placeholder="Es. Rossi">
+    <label>Numero Badge</label>
+    <input type="text" id="loginBadge" inputmode="numeric" placeholder="Es. 022">
+    <button class="btn btn-primary" id="btnLogin">Accedi</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="appScreen" class="container" style="display:none;">
+  <div class="top-bar">
+    <h1 id="operaioNome" style="font-size:16px;">-</h1>
+    <span class="logout" id="btnLogout">Esci</span>
+  </div>
+
+  <div class="card">
+    <h1>Manutenzione sterilizzatore</h1>
+    <p class="sub">Programma di manutenzione JBT — scegli il formato e segna i controlli fatti</p>
+    <label>Formato / linea</label>
+    <select id="selLineaManut"></select>
+    <div id="checklistContainer"><p class="sub">Seleziona una linea...</p></div>
+  </div>
+
+  <div class="card">
+    <h1 style="font-size:16px;">Segnala un problema</h1>
+    <p class="sub">Per guasti o anomalie sulla macchina</p>
+    <label>Linea / Macchina</label>
+    <select id="selLineaSegnalazione"></select>
+    <label>Componente (se noto)</label>
+    <input type="text" id="inComponente" placeholder="Es. Nastro trasportatore">
+    <label>Descrizione</label>
+    <textarea id="inDescSegnalazione" rows="2" placeholder="Cosa non funziona?"></textarea>
+    <button class="btn btn-warn" id="btnSegnala">Invia segnalazione</button>
+    <div class="msg" id="segMsg"></div>
+  </div>
+
+  <div class="card">
+    <h1 style="font-size:16px;">Le tue segnalazioni</h1>
+    <div id="segList"><p class="sub">Caricamento...</p></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://bzquqzgaaszguzcmvgbl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cXVxemdhYXN6Z3V6Y212Z2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjI4NjUsImV4cCI6MjA5NjY5ODg2NX0.p4lwBT2HWVEGge8LqVYu_rA1kO4WFxtbvCFDe1kRxeY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let lineeCache = [];
+
+const CHECKLIST = [
+  { freq: 'Settimanale', items: [
+    'Controllare guarnizioni e molle nelle valvole',
+    'Controllare premistoppa degli alberi del rotore',
+    "Controllare premistoppa dell'albero di ogni valvola",
+    'Controllare funzionamento dei freni',
+    'Controllare collegamenti linee di lubrificazione (perdite olio)',
+    'Controllare tensione catena a tazze/alimentazione',
+    'Controllare catena e denti motorizzazione principale',
+    'Svuotare fasciami e riempire con acqua fresca',
+    'Pulire superficie di riferimento fotocellule'
+  ]},
+  { freq: 'Mensile', items: [
+    'Smontare guarnizioni e molle da ogni valvola, pulire e controllare usura'
+  ]},
+  { freq: 'Trimestrale', items: [
+    'Ispezione visiva corrosione autoclave e tamburo',
+    'Lavorare a caldo i fasciami con acqua e sapone liquido'
+  ]},
+  { freq: 'Semestrale', items: [
+    'Taratura dello strumento',
+    'Ingrassare cuscinetti alberi motori e di torsione',
+    'Ingrassare rulli sotto le gambe'
+  ]},
+  { freq: 'Annuale', items: [
+    'Controllare bulloni, dadi e anelli di sicurezza',
+    'Pulire la macchina esternamente con pulitrice alta pressione',
+    'Cambiare olio nel riduttore del motore',
+    'Controllare tracce di corrosione interna/esterna autoclave'
+  ]},
+  { freq: 'Biennale', items: [
+    'Controllare messa a terra motori elettrici e utenze',
+    'Sostituire batterie di back-up del PLC'
+  ]},
+  { freq: 'Quinquennale', items: [
+    'Ispezione interna autoclave a pressione',
+    'Misurazione a ultrasuoni spessore autoclave'
+  ]},
+  { freq: 'Decennale', items: [
+    'Test pressione idrica autoclave a pressione'
+  ]}
+];
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+document.getElementById('btnLogin').addEventListener('click', () => {
+  const nome = document.getElementById('loginNome').value.trim();
+  const cognome = document.getElementById('loginCognome').value.trim();
+  const badge = document.getElementById('loginBadge').value.trim();
+  if (!nome || !cognome || !badge) return showMsg('loginMsg', 'Compila nome, cognome e badge', 'err');
+  currentUser = { nome: nome + ' ' + cognome, badge };
+  sessionStorage.setItem('manut_user', JSON.stringify(currentUser));
+  entraNellApp();
+});
+document.getElementById('btnLogout').addEventListener('click', () => { sessionStorage.removeItem('manut_user'); location.reload(); });
+
+async function entraNellApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('operaioNome').textContent = currentUser.nome;
+  await caricaLinee();
+  await caricaSegnalazioni();
+}
+
+async function caricaLinee() {
+  const { data } = await sb.from('linee_sterilizzazione').select('*').order('nome');
+  lineeCache = data || [];
+  const opts = lineeCache.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
+  document.getElementById('selLineaManut').innerHTML = opts;
+  document.getElementById('selLineaSegnalazione').innerHTML = opts;
+  if (lineeCache.length) caricaChecklist();
+}
+document.getElementById('selLineaManut').addEventListener('change', caricaChecklist);
+
+async function caricaChecklist() {
+  const lineaId = document.getElementById('selLineaManut').value;
+  const linea = lineeCache.find(l => l.id === lineaId);
+  const cont = document.getElementById('checklistContainer');
+  if (!linea) { cont.innerHTML = '<p class="sub">Nessuna linea disponibile</p>'; return; }
+
+  const { data: log } = await sb.from('manutenzione_checklist_log').select('*').eq('linea_id', lineaId).order('data_completamento', { ascending: false });
+  const ultimaData = {};
+  (log || []).forEach(r => { if (!ultimaData[r.item_key]) ultimaData[r.item_key] = r.data_completamento; });
+
+  let html = '';
+  CHECKLIST.forEach(gruppo => {
+    html += `<div class="freq-title">${gruppo.freq}</div>`;
+    gruppo.items.forEach((testo, idx) => {
+      const key = gruppo.freq + '-' + idx;
+      const ultima = ultimaData[key];
+      html += `<div class="item-row">
+        <div class="item-testo">${testo}</div>
+        <div class="item-bottom">
+          <span class="item-data">${ultima ? 'Ultima volta: ' + new Date(ultima).toLocaleDateString('it-IT') : 'Mai fatto'}</span>
+          <button class="item-btn" data-linea="${lineaId}" data-nomelinea="${linea.nome}" data-freq="${gruppo.freq}" data-key="${key}">✓ Segna come fatto oggi</button>
+        </div>
+      </div>`;
+    });
+  });
+  cont.innerHTML = html;
+  cont.querySelectorAll('.item-btn').forEach(b => b.addEventListener('click', () => segnaFatto(b)));
+}
+
+async function segnaFatto(btn) {
+  const testo = btn.closest('.item-row').querySelector('.item-testo').textContent;
+  const payload = {
+    linea_id: btn.dataset.linea,
+    linea_nome: btn.dataset.nomelinea,
+    frequenza: btn.dataset.freq,
+    item_key: btn.dataset.key,
+    item_testo: testo,
+    data_completamento: new Date().toISOString().split('T')[0],
+    operatore_nome: currentUser.nome
+  };
+  const { error } = await sb.from('manutenzione_checklist_log').insert(payload);
+  if (error) { alert('Errore: ' + error.message); return; }
+  await caricaChecklist();
+}
+
+document.getElementById('btnSegnala').addEventListener('click', async () => {
+  const linea_id = document.getElementById('selLineaSegnalazione').value;
+  const descrizione = document.getElementById('inDescSegnalazione').value.trim();
+  if (!linea_id || !descrizione) return showMsg('segMsg', 'Compila linea e descrizione', 'err');
+
+  const payload = {
+    linea_id,
+    componente: document.getElementById('inComponente').value || null,
+    tipo: 'segnalazione',
+    descrizione,
+    autore_id: null,
+    autore_nome: currentUser.nome,
+    ruolo_autore: 'operaio',
+    stato: 'aperta'
+  };
+
+  const { error } = await sb.from('manutenzione_log').insert(payload);
+  if (error) return showMsg('segMsg', 'Errore invio: ' + error.message, 'err');
+  showMsg('segMsg', 'Segnalazione inviata', 'ok');
+  document.getElementById('inComponente').value = '';
+  document.getElementById('inDescSegnalazione').value = '';
+  await caricaSegnalazioni();
+});
+
+async function caricaSegnalazioni() {
+  const { data, error } = await sb.from('manutenzione_log').select('*')
+    .eq('autore_nome', currentUser.nome).order('created_at', { ascending: false }).limit(10);
+  const el = document.getElementById('segList');
+  if (error || !data || data.length === 0) {
+    el.innerHTML = '<p class="sub">Nessuna segnalazione ancora</p>';
+    return;
+  }
+  const statoColor = { aperta: '#fef3c7', in_corso: '#dbeafe', risolta: '#dcfce7' };
+  const statoTextColor = { aperta: '#92400e', in_corso: '#1e40af', risolta: '#166534' };
+  el.innerHTML = data.map(d => {
+    const linea = lineeCache.find(l => l.id === d.linea_id);
+    const dt = new Date(d.created_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const bg = statoColor[d.stato] || '#f1f5f9';
+    const col = statoTextColor[d.stato] || '#333';
+    return `<div class="history-item">
+      <div><span class="badge" style="background:${bg};color:${col}">${d.stato || 'aperta'}</span> ${linea ? linea.nome : ''} - ${dt}</div>
+      <div style="margin-top:4px">${d.componente ? '<strong>' + d.componente + ':</strong> ' : ''}${d.descrizione || ''}</div>
+      <button onclick="eliminaSegnalazione('${d.id}')" style="margin-top:4px;background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">🗑️ Elimina</button>
+    </div>`;
+  }).join('');
+}
+
+async function eliminaSegnalazione(id) {
+  if (!confirm('Eliminare questa segnalazione?')) return;
+  await sb.from('manutenzione_log').delete().eq('id', id);
+  await caricaSegnalazioni();
+}
+
+(function initSession() {
+  const saved = sessionStorage.getItem('manut_user');
+  if (saved) { currentUser = JSON.parse(saved); entraNellApp(); }
+})();
+</script>
+</body>
+</html>
